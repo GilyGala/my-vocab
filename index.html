@@ -76,7 +76,6 @@
         .counter { font-size: 1rem; font-weight: bold; color: #2c3e50; background: rgba(255,255,255,0.7); backdrop-filter: blur(10px); padding: 8px 18px; border-radius: 18px; border: 1px solid rgba(255,255,255,0.5); }
         .gesture-hint { font-size: 0.85rem; font-weight: 500; color: #2c3e50; margin-bottom: 20px; background: rgba(255,255,255,0.5); backdrop-filter: blur(5px); padding: 6px 18px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3);}
 
-        /* 🌟 核心修改 1：移除所有 3D 容器属性 */
         .card-container { margin-bottom: 30px; position: relative; }
         
         .card {
@@ -91,7 +90,6 @@
         
         .card.dragging { transition: none !important; }
 
-        /* 🌟 核心修改 2：彻底用 2D 淡入淡出替代 3D 翻转 */
         .card-face {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
             border-radius: 35px; 
@@ -116,7 +114,6 @@
             opacity: 0; pointer-events: none; transform: scale(0.95); z-index: 1;
         }
 
-        /* 触发翻页时的状态 */
         .card.is-flipped .card-front {
             opacity: 0; pointer-events: none; transform: scale(0.95);
         }
@@ -124,11 +121,10 @@
             opacity: 1; pointer-events: auto; transform: scale(1); z-index: 3;
         }
 
-        /* 原生的滚动层，再也不会被系统屏蔽 */
         .card-back-scroll {
             width: 100%; height: 100%;
             overflow-y: auto;
-            -webkit-overflow-scrolling: touch; /* 保证苹果手机上的滚动惯性 */
+            -webkit-overflow-scrolling: touch;
             padding: 35px 25px 25px 25px;
             box-sizing: border-box;
             user-select: text; -webkit-user-select: text;
@@ -344,7 +340,8 @@
             "don", "didn", "doesn", "isn", "aren", "wasn", "weren", "hasn", "haven", "hadn", "won", "wouldn", "couldn", "shouldn", "mustn", "cannot", "gonna", "wanna", "gotta", "lemme", "ain"
         ]);
 
-        let currentWords = []; let currentIndex = 0; const card = document.getElementById('flashcard');
+        // 🌟 新增了 currentBookTitle 全局变量，用于记录当前单词本名称
+        let currentWords = []; let currentIndex = 0; let currentBookTitle = ""; const card = document.getElementById('flashcard');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
         function triggerVibration(type) {
@@ -421,7 +418,12 @@
         function openBook(index) {
             const book = library[index];
             if (book.words.length === 0) return alert("这个单词本是空的哦！");
-            currentWords = book.words; currentIndex = 0;
+            
+            // 🌟 记录当前打开的单词本名称，供 AI 参考
+            currentWords = book.words; 
+            currentIndex = 0; 
+            currentBookTitle = book.title; 
+            
             document.getElementById('main-title').innerText = book.title;
             document.getElementById('library-view').classList.add('hidden');
             document.getElementById('study-view').classList.remove('hidden');
@@ -697,7 +699,8 @@
             aiContainer.innerHTML = '<span style="color:#f39c12; font-weight:bold;">🚀 AI 正在深度拆解中...</span>';
             aiContainer.classList.add('active');
 
-            const prompt = `你是一个专业的英语学习助手。请拆解以下英文句子：\n"${currentVocab.sentence}"\n\n请严格按以下结构返回（使用Markdown格式）：\n### 1. 核心词汇\n(提取句中的生词/词组，如 \`word\`: 词性，中文释义)\n### 2. 句式与语法逻辑\n(分析句子的时态、语态、从句或特殊结构)\n### 3. 语境补充\n(如果能推测，简要说明这句话的语气或适用场景)`;
+            // 🌟 核心提示词升级：将书籍来源（currentBookTitle）喂给大模型
+            const prompt = `你是一个专业的英语学习助手。我正在阅读名为《${currentBookTitle}》的文档，遇到了以下句子：\n"${currentVocab.sentence}"\n\n请严格按以下结构返回（使用Markdown格式）：\n### 1. 核心词汇\n(提取句中的生词/词组，如 \`word\`: 词性，中文释义)\n### 2. 句式与语法逻辑\n(分析句子的时态、语态、从句或特殊结构)\n### 3. 语境补充\n(结合文档来源《${currentBookTitle}》的背景，深度解析这句话在文中的实际语境、言外之意或适用场景)`;
 
             try {
                 const response = await fetch(`${apiUrl}/chat/completions`, {
@@ -740,7 +743,6 @@
         function handleTouchStart(e) {
             if (audioCtx.state === 'suspended') audioCtx.resume();
             
-            // 🌟 剥离 3D 后，无需阻止特定的内部元素被触控
             if (e.target.closest('.book-actions') || e.target.closest('.btn-speak') || e.target.closest('.card-back-scroll')) return; 
             
             isDragging = true; isClick = true; 
@@ -759,7 +761,7 @@
             if (Math.abs(currentX) > 10 || Math.abs(currentY) > 10) { isClick = false; e.preventDefault(); }
             
             let ratio = Math.min(Math.abs(currentX) / swipeThreshold, 1);
-            let rotate = currentX * 0.05; // 减弱 2D 旋转幅度
+            let rotate = currentX * 0.05; 
             
             if (currentX < 0) {
                 card.style.setProperty('--glow-color', `rgba(46, 204, 113, ${ratio * 0.7})`);
@@ -769,7 +771,6 @@
                 card.style.setProperty('--border-color', `rgba(231, 76, 60, ${ratio + 0.3})`);
             }
 
-            // 完全移除 3D 的 flipTransform 变量，改为纯 2D 平移加一点旋转
             card.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg) scale(0.98)`;
             card.style.webkitTransform = `translate(${currentX}px, ${currentY}px) rotate(${rotate}deg) scale(0.98)`;
         }
